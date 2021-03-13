@@ -29,7 +29,7 @@ Scan
 professore --url https://github.com
 ```
 
-Show tags code
+Show `<link>` and `<script>` tags html
 
 ```bash
 professore --url https://github.com --code
