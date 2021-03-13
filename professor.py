@@ -27,12 +27,18 @@ security_headers_found = []
 
 security_headers_missing = []
 
+redirect = []
+
+request_headers = []
+
 
 def args_parse():
 
     parse = argparse.ArgumentParser()
 
     parse.add_argument('-u', '--url', help="Url", required=True)
+    parse.add_argument(
+        '-r', '--request', help="Show request headers", action='store_true')
     parse.add_argument(
         '-c', '--code', help="Print tags innter text", action='store_true')
     parse.add_argument(
@@ -41,11 +47,13 @@ def args_parse():
 
 
 def outout(items: List, headers: Dict):
+    global show_request_headers
 
     domains = set()
 
     print("\nScan Results".title())
-    print("{:10} {:8} {:8} {:25} {:10} ".format('Tag', 'Download', 'Scheme', 'Domain', 'Path'))
+    print("{:10} {:8} {:8} {:25} {:10} ".format(
+        'Tag', 'Download', 'Scheme', 'Domain', 'Path'))
 
     for i in items:
 
@@ -65,18 +73,29 @@ def outout(items: List, headers: Dict):
             continue
         print(d)
 
+    if show_request_headers:
+        print("\nrequest headers".title())
+        for i in request_headers.items():
+            header_name, header_value = i
+
+            print("{:25} {}".format(header_name, header_value))
+
     print("\nresponse headers".title())
     for i in headers.items():
         header_name, header_value = i
 
         print("{:25} {}".format(header_name, header_value))
-    
+
     print("\nInformation".title())
     print("Url {}".format(url))
     print("Scan Date: {}".format(scan_start))
-    print("Missing Security Headers:")
+    print("Missing Security Headers: ({})".format(
+        len(security_headers_missing)))
     for i in security_headers_missing:
         print("    {}".format(i))
+    print("Number Of Redirects: ({})".format(len(redirect)))
+    for i in redirect:
+        print("    Code: {status} URL: {url}".format(**i))
 
 
 def parse_text(text: str):
@@ -126,10 +145,10 @@ def parse_text(text: str):
     return sorted(results, key=lambda x: x['domain'])
 
 
-def download_file(link: str = "", 
+def download_file(link: str = "",
                   filename: str = "",
                   scheme: str = ""):
-    
+
     if not scheme:
         link = f"https:{link}"
 
@@ -139,7 +158,7 @@ def download_file(link: str = "",
         response = requests.get(link)
     except Exception as e:
         return False
-        
+
     filepath = os.path.join(download_path, filename)
 
     with open(filepath, 'w') as f:
@@ -148,8 +167,19 @@ def download_file(link: str = "",
 
 def make_request(url: str):
 
+    global show_request_headers
+    global request_headers
+
     try:
         response = requests.get(url)
+
+        if show_request_headers:
+            request_headers = response.request.headers
+
+        if response.history:
+            for i in response.history:
+                redirect.append({'status': i.status_code, 'url': i.url})
+
     except Exception as e:
         return "", {}
 
@@ -164,7 +194,8 @@ def check_security_headers(headers: Dict = {}):
         if i.title() in security_headers:
             security_headers_found.append(i.title())
 
-    security_headers_missing = list(set(security_headers) - set(security_headers_found) )
+    security_headers_missing = list(
+        set(security_headers) - set(security_headers_found))
 
 
 def main():
@@ -174,11 +205,13 @@ def main():
     global show_code
     global download_path
     global scan_start
+    global show_request_headers
 
     args = args_parse()
     url = args.url
     show_code = args.code
     download_path = args.download
+    show_request_headers = args.request
     scan_start = datetime.now()
 
     if download_path:
