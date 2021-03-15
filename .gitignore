@@ -1,2 +1,5 @@
 .vscode/*
 code.sh
+dist
+build
+*.egg-info
