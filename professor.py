@@ -24,6 +24,7 @@ security_headers = [
 ]
 
 security_headers_found = []
+security_headers_found_items = {}
 
 security_headers_missing = []
 
@@ -47,11 +48,12 @@ def args_parse():
 
 
 def outout(items: List, headers: Dict):
+
     global show_request_headers
 
     domains = set()
 
-    print("\nScan Results".title())
+    print("\n== Scan Results ==".title())
     print("{:10} {:8} {:8} {:25} {:10} ".format(
         'Tag', 'Download', 'Scheme', 'Domain', 'Path'))
 
@@ -67,7 +69,7 @@ def outout(items: List, headers: Dict):
             print(i['code'])
             print("\n")
 
-    print("\nTotal Domains used: ({})".format(len(domains)))
+    print("\n== Total Domains used: ({}) ==".format(len(domains)))
     for d in domains:
         if not d:
             continue
@@ -80,19 +82,24 @@ def outout(items: List, headers: Dict):
 
             print("{:25} {}".format(header_name, header_value))
 
-    print("\nresponse headers".title())
+    print("\n== raw response headers ==".title())
     for i in headers.items():
         header_name, header_value = i
 
         print("{:25} {}".format(header_name, header_value))
 
-    print("\nInformation".title())
+    print("\n== Information ==".title())
     print("Url {}".format(url))
     print("Scan Date: {}".format(scan_start))
     print("Missing Security Headers: ({})".format(
         len(security_headers_missing)))
     for i in security_headers_missing:
         print("    {}".format(i))
+    print("Security Headers Found: ({})".format(len(security_headers_found)))
+    for i in security_headers_found:
+        print("    {}".format(i))
+        for x in security_headers_found_items[i]:
+            print("        {}".format(x))
     print("Number Of Redirects: ({})".format(len(redirect)))
     for i in redirect:
         print("    Code: {status} URL: {url}".format(**i))
@@ -189,10 +196,18 @@ def make_request(url: str):
 def check_security_headers(headers: Dict = {}):
 
     global security_headers_missing
+    global security_headers_found_items
 
-    for i in headers:
+    for i, v in headers.items():
         if i.title() in security_headers:
+
+            header_values = v.strip().split(';')
+
             security_headers_found.append(i.title())
+
+            _ = security_headers_found_items.setdefault(i.title(), [])
+
+            [_.append(x.strip()) for x in header_values]
 
     security_headers_missing = list(
         set(security_headers) - set(security_headers_found))
